@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="hymn_app"
+        android:label="Hymns"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

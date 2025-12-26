@@ -17,9 +17,8 @@ import 'package:hymn_app/services/swipe_handler.dart';
 import 'package:hymn_app/services/language_service.dart';
 import 'package:hymn_app/services/hymn_copy_service.dart';
 import 'package:hymn_app/services/chord_service.dart';
-import 'package:hymn_app/services/simple_midi_parser.dart';
 import 'package:hymn_app/services/midi_player_service.dart';
-
+import 'package:hymn_app/presentation/screens/chords/guitar_chord.dart';
 
 void main() {
   runApp(
@@ -73,12 +72,13 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _restoreLastState();
   }
+
   Future<void> _stopMidiIfPlaying() async {
-  if (isPlaying) {
-    await SystemMidiPlayer.stop();
-    setState(() => isPlaying = false);
+    if (isPlaying) {
+      await SystemMidiPlayer.stop();
+      setState(() => isPlaying = false);
+    }
   }
-}
 
   Future<void> _restoreLastState() async {
     final saved = await HymnState.load();
@@ -168,9 +168,8 @@ class _MyHomePageState extends State<MyHomePage> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SearchScreen(
-          currentPrefix: currentLanguage?.prefixes.first ?? "E",
-        ),
+        builder: (_) =>
+            SearchScreen(currentPrefix: currentLanguage?.prefixes.first ?? "E"),
       ),
     );
 
@@ -194,6 +193,25 @@ class _MyHomePageState extends State<MyHomePage> {
     await _loadHymnByPrefix(route);
   }
 
+  void _showNoChordsSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("No chords available for ${hymn!['_id']}")),
+    );
+  }
+
+  Future<void> _openChordScreen(String svgPath) {
+    return Navigator.push(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ChordFullscreenPage(
+          hymnId: hymn!['_id'].toString(),
+          svgPath: svgPath,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = Provider.of<SettingsModel>(context);
@@ -206,13 +224,23 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: currentLanguage?.badgeColor ?? Theme.of(context).primaryColor,
+          backgroundColor:
+              currentLanguage?.badgeColor ?? Theme.of(context).primaryColor,
           title: Text(hymn?['_id']?.toString() ?? widget.title),
           actions: [
-            IconButton(icon: const Icon(Icons.search), onPressed: _openSearchScreen),
-            IconButton(icon: const Icon(Icons.settings), onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-            }),
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: _openSearchScreen,
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+            ),
           ],
         ),
 
@@ -224,8 +252,8 @@ class _MyHomePageState extends State<MyHomePage> {
         body: loading
             ? const Center(child: CircularProgressIndicator())
             : hymn == null
-                ? const Center(child: Text("No hymn found"))
-                : _buildContent(),
+            ? const Center(child: Text("No hymn found"))
+            : _buildContent(),
       ),
     );
   }
@@ -245,56 +273,59 @@ class _MyHomePageState extends State<MyHomePage> {
         padding: const EdgeInsets.all(16),
         children: [
           HymnHeaderCard(
-              title: hymn?['main_category']?.toString() ??
-              hymn?['first_stanza_line']?.toString(),
-              subTitle: hymn?['sub_category']?.toString(),
-              author: hymn?['author']?.toString(),
-              meter: hymn?['meter']?.toString(),
-              related: hymn?['related']?.toString(),
-              size: 20,
-              currentLanguage: currentLanguage,
+            title:
+                hymn?['main_category']?.toString() ??
+                hymn?['first_stanza_line']?.toString(),
+            subTitle: hymn?['sub_category']?.toString(),
+            author: hymn?['author']?.toString(),
+            meter: hymn?['meter']?.toString(),
+            related: hymn?['related']?.toString(),
+            size: 20,
+            currentLanguage: currentLanguage,
 
-              isPlaying: isPlaying,
+            isPlaying: isPlaying,
 
-              onCopyPressed: () {
-                HymnCopyService.copyHymn(
-                  context: context,
-                  hymn: hymn,
-                  stanzas: stanzas,
-                );
-              },
+            onCopyPressed: () {
+              HymnCopyService.copyHymn(
+                context: context,
+                hymn: hymn,
+                stanzas: stanzas,
+              );
+            },
 
-              onChordPressed: () {
-                if (hymn != null) {
-                  ChordService.showChordFullscreen(
-                    context: context,
-                    hymn: hymn!,
-                  );
-                }
-              },
-              onPlayPressed: () async {
-                final tune = hymn?['tune'];
-                if (tune == null) return;
+            onChordPressed: () async {
+              if (hymn == null) return;
 
-                if (isPlaying) {
-                  await SystemMidiPlayer.stop();
-                  setState(() => isPlaying = false);
-                } else {
-                  await SystemMidiPlayer.play('assets/tune/m$tune.mid');
-                  setState(() => isPlaying = true);
-                }
-              },
-            ),
+              final svgPath = await ChordService.getChordSvgPath(hymn: hymn!);
 
+              if (!mounted) return;
+
+              if (svgPath == null) {
+                _showNoChordsSnackBar();
+                return;
+              }
+
+              _openChordScreen(svgPath);
+            },
+            onPlayPressed: () async {
+              final tune = hymn?['tune'];
+              if (tune == null) return;
+
+              if (isPlaying) {
+                await SystemMidiPlayer.stop();
+                setState(() => isPlaying = false);
+              } else {
+                await SystemMidiPlayer.play('assets/tune/m$tune.mid');
+                setState(() => isPlaying = true);
+              }
+            },
+          ),
 
           const SizedBox(height: 24),
 
           ...stanzas.map((s) {
-            return StanzaBlock(
-              stanza: s,
-              currentLanguage: currentLanguage,
-            );
-          }).toList(),
+            return StanzaBlock(stanza: s, currentLanguage: currentLanguage);
+          }),
         ],
       ),
     );

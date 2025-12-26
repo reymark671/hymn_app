@@ -4,11 +4,7 @@ import '../../../data/models/settings_model.dart';
 import 'package:hymn_app/data/models/language.dart';
 
 class SettingsScreen extends StatelessWidget {
-
-  const SettingsScreen({
-     super.key,
-   
-  });
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -66,9 +62,10 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
               value: settings.disabledLanguages.contains(lang.badgeText),
-              onChanged: (v) => settings.toggleLanguage(lang.badgeText, v ?? false),
+              onChanged: (v) =>
+                  settings.toggleLanguage(lang.badgeText, v ?? false),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

@@ -18,8 +18,6 @@ class SideNav extends StatelessWidget {
     return Drawer(
       child: ListView(
         children: [
-         
-
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
@@ -28,24 +26,30 @@ class SideNav extends StatelessWidget {
             ),
           ),
 
-          ...allLanguages.where((lang) {
-            return !disabledLanguages.contains(lang.badgeText);
-          }).map((lang) {
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: lang.badgeColor,
-                child: Text(
-                  lang.badgeText,
-                  style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ),
-              title: Text(lang.name),
-              onTap: () {
-                Navigator.pop(context);
-                onItemSelected(lang.badgeText);
-              },
-            );
-          }).toList(),
+          ...allLanguages
+              .where((lang) {
+                return !disabledLanguages.contains(lang.badgeText);
+              })
+              .map((lang) {
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: lang.badgeColor,
+                    child: Text(
+                      lang.badgeText,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  title: Text(lang.name),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onItemSelected(lang.badgeText);
+                  },
+                );
+              }),
 
           const Divider(),
 
@@ -54,8 +58,8 @@ class SideNav extends StatelessWidget {
             title: const Text("Settings"),
             onTap: () {
               Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
               );
             },
           ),
@@ -65,8 +69,8 @@ class SideNav extends StatelessWidget {
             title: const Text("About"),
             onTap: () {
               Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AboutScreen()),
+                context,
+                MaterialPageRoute(builder: (_) => const AboutScreen()),
               );
             },
           ),

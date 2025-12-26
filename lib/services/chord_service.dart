@@ -1,35 +1,17 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../presentation/screens/chords/guitar_chord.dart';
 
 class ChordService {
-  static Future<void> showChordFullscreen({
-    required BuildContext context,
+  /// Checks if chord asset exists and returns SVG path if available
+  static Future<String?> getChordSvgPath({
     required Map<String, Object?> hymn,
   }) async {
     final hymnId = hymn['_id'].toString();
     final svgPath = "assets/guitarSvg/$hymnId.svg";
 
-    bool exists = await _assetExists(svgPath);
+    final exists = await _assetExists(svgPath);
+    if (!exists) return null;
 
-    if (!exists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("No chords available for $hymnId")),
-      );
-      return;
-    }
-
-    // No longer forcing landscape
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => ChordFullscreenPage(
-          hymnId: hymnId,
-          svgPath: svgPath,
-        ),
-      ),
-    );
+    return svgPath;
   }
 
   static Future<bool> _assetExists(String path) async {

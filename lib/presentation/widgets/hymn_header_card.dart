@@ -36,9 +36,7 @@ class HymnHeaderCard extends StatelessWidget {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -65,10 +63,7 @@ class HymnHeaderCard extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: size,
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.color,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                     ),
                 ],
@@ -111,26 +106,23 @@ class HymnHeaderCard extends StatelessWidget {
                     icon: Icons.copy,
                     label: "Copy",
                     onPressed: onCopyPressed,
-                    backgroundColor: const Color.fromARGB(0, 142, 135, 135),
                   ),
                   const SizedBox(width: 16),
                   _tabButton(
                     icon: isPlaying ? Icons.stop : Icons.play_arrow,
                     label: isPlaying ? "Stop" : "Play",
                     onPressed: onPlayPressed,
-                    backgroundColor: const Color.fromARGB(0, 142, 135, 135),
                   ),
                   const SizedBox(width: 16),
                   _tabButton(
                     icon: Icons.library_music_rounded,
                     label: "Chords",
-                    backgroundColor: const Color.fromARGB(0, 142, 135, 135),
+
                     onPressed: onChordPressed,
                   ),
                 ],
               ),
             ),
-
           ],
         ),
       ),
@@ -164,10 +156,7 @@ class HymnHeaderCard extends StatelessWidget {
           children: [
             Icon(icon, size: 22),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12),
-            ),
+            Text(label, style: const TextStyle(fontSize: 12)),
           ],
         ),
       ),
