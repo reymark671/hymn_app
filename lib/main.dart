@@ -85,8 +85,8 @@ class _MyHomePageState extends State<MyHomePage> {
     final lastId = saved["id"];
     final lastLang = saved["lang"];
 
-    if (lastId != null && lastId.isNotEmpty) {
-      currentLanguage = LanguageService.getByCode(lastLang ?? "E");
+    if (lastId != null && lastLang != null) {
+      currentLanguage = LanguageService.getByCode(lastLang);
       await _loadHymnById(lastId);
     } else {
       currentLanguage = LanguageService.getByCode("E");
@@ -189,8 +189,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _handleNav(String route) async {
     final lang = LanguageService.getByCode(route);
+
     setState(() => currentLanguage = lang);
-    await _loadHymnByPrefix(route);
+
+    final lastId = await HymnState.loadLastForLanguage(lang.badgeText);
+
+    if (lastId != null) {
+      await _loadHymnById(lastId);
+    } else {
+      await _loadHymnByPrefix(route);
+    }
   }
 
   void _showNoChordsSnackBar() {
@@ -318,6 +326,16 @@ class _MyHomePageState extends State<MyHomePage> {
                 await SystemMidiPlayer.play('assets/tune/m$tune.mid');
                 setState(() => isPlaying = true);
               }
+            },
+            onRelatedPressed: (relatedId) async {
+              await _stopMidiIfPlaying();
+              final lang = LanguageService.detectFromHymnId(relatedId);
+              if (lang != null) {
+                setState(() {
+                  currentLanguage = lang;
+                });
+              }
+              await _loadHymnById(relatedId);
             },
           ),
 

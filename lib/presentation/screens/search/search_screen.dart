@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hymn_app/services/search_service.dart';
 import 'package:hymn_app/data/models/language.dart';
 
@@ -14,9 +15,9 @@ class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
   late TabController tabController;
 
-  TextEditingController searchNumber = TextEditingController();
-  TextEditingController searchStanza = TextEditingController();
-  TextEditingController searchFirstLine = TextEditingController();
+  final TextEditingController searchNumber = TextEditingController();
+  final TextEditingController searchStanza = TextEditingController();
+  final TextEditingController searchFirstLine = TextEditingController();
 
   List<Map<String, Object?>> results = [];
   bool searching = false;
@@ -27,10 +28,27 @@ class _SearchScreenState extends State<SearchScreen>
     tabController = TabController(length: 3, vsync: this);
   }
 
+  @override
+  void dispose() {
+    tabController.dispose();
+    searchNumber.dispose();
+    searchStanza.dispose();
+    searchFirstLine.dispose();
+    super.dispose();
+  }
+
   Future<void> doSearch(int tabIndex, String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        results = [];
+        searching = false;
+      });
+      return;
+    }
+
     setState(() => searching = true);
 
-    List<Map<String, Object?>> res = [];
+    List<Map<String, Object?>> res;
 
     if (tabIndex == 0) {
       res = await SearchService.searchByNumber(query, widget.currentPrefix);
@@ -50,18 +68,26 @@ class _SearchScreenState extends State<SearchScreen>
       decoration: BoxDecoration(
         color: lang.badgeColor,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: lang.borderColor, width: 1),
+        border: Border.all(color: lang.borderColor),
       ),
       child: Text(
         lang.badgeText,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
 
   Widget buildResults() {
-    if (searching) return const Center(child: CircularProgressIndicator());
-    if (results.isEmpty) return const Center(child: Text("No results found"));
+    if (searching) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (results.isEmpty) {
+      return const Center(child: Text("No results found"));
+    }
 
     return ListView.builder(
       itemCount: results.length,
@@ -69,7 +95,6 @@ class _SearchScreenState extends State<SearchScreen>
         final hymn = results[index];
         final id = hymn["_id"].toString();
         final title = hymn["first_stanza_line"]?.toString() ?? "";
-
         final lang = SearchService.getLanguageForId(id);
 
         return ListTile(
@@ -86,14 +111,24 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget buildSearchField(String text, TextEditingController ctrl, int tabIndex) {
+  Widget buildSearchField(
+    String hint,
+    TextEditingController controller,
+    int tabIndex, {
+    bool numericOnly = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.all(12),
       child: TextField(
-        controller: ctrl,
+        controller: controller,
+        autofocus: numericOnly,
+        keyboardType: numericOnly ? TextInputType.number : TextInputType.text,
+        inputFormatters: numericOnly
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : null,
         decoration: InputDecoration(
           prefixIcon: const Icon(Icons.search),
-          hintText: text,
+          hintText: hint,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
         onChanged: (value) => doSearch(tabIndex, value),
@@ -118,18 +153,29 @@ class _SearchScreenState extends State<SearchScreen>
       body: TabBarView(
         controller: tabController,
         children: [
-          Column(children: [
-            buildSearchField("Search by hymn number…", searchNumber, 0),
-            Expanded(child: buildResults())
-          ]),
-          Column(children: [
-            buildSearchField("Search by stanza…", searchStanza, 1),
-            Expanded(child: buildResults())
-          ]),
-          Column(children: [
-            buildSearchField("Search by first line…", searchFirstLine, 2),
-            Expanded(child: buildResults())
-          ]),
+          Column(
+            children: [
+              buildSearchField(
+                "Search by hymn number…",
+                searchNumber,
+                0,
+                numericOnly: true, // 🔢 NUMBER KEYPAD
+              ),
+              Expanded(child: buildResults()),
+            ],
+          ),
+          Column(
+            children: [
+              buildSearchField("Search by stanza…", searchStanza, 1),
+              Expanded(child: buildResults()),
+            ],
+          ),
+          Column(
+            children: [
+              buildSearchField("Search by first line…", searchFirstLine, 2),
+              Expanded(child: buildResults()),
+            ],
+          ),
         ],
       ),
     );

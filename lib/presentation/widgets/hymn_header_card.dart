@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hymn_app/data/models/language.dart';
+import 'package:hymn_app/presentation/widgets/related_hymn_badge.dart';
+import 'package:hymn_app/services/language_service.dart';
+import 'package:provider/provider.dart';
+import 'package:hymn_app/data/models/settings_model.dart';
 
 class HymnHeaderCard extends StatelessWidget {
   final String? title;
@@ -15,7 +19,7 @@ class HymnHeaderCard extends StatelessWidget {
   final VoidCallback? onPlayPressed;
 
   final bool isPlaying;
-
+  final void Function(String hymnId)? onRelatedPressed;
   const HymnHeaderCard({
     super.key,
     this.title,
@@ -28,6 +32,7 @@ class HymnHeaderCard extends StatelessWidget {
     this.onChordPressed,
     this.onPlayPressed,
     required this.isPlaying,
+    this.onRelatedPressed,
     this.currentLanguage,
   });
 
@@ -79,13 +84,54 @@ class HymnHeaderCard extends StatelessWidget {
               Text("Meter: $meter", style: TextStyle(fontSize: size)),
 
             if (related != null && related!.isNotEmpty)
-              Text(
-                "Related: $related",
-                style: TextStyle(
-                  fontSize: size,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
+              Builder(
+                builder: (context) {
+                  final settings = Provider.of<SettingsModel>(context);
+
+                  final relatedBadges = related!
+                      .split(',')
+                      .map((id) => id.trim())
+                      .where((id) => id.isNotEmpty)
+                      .map((id) {
+                        final lang = LanguageService.detectFromHymnId(id);
+                        if (lang == null) return null;
+
+                        // 🔥 FILTER BASED ON SETTINGS
+                        if (!settings.relatedEnabledLanguages.contains(
+                          lang.badgeText,
+                        )) {
+                          return null;
+                        }
+
+                        return RelatedHymnBadge(
+                          language: lang,
+                          hymnId: id,
+                          onTap: () => onRelatedPressed?.call(id),
+                        );
+                      })
+                      .whereType<Widget>()
+                      .toList();
+
+                  // 🚫 Hide section if nothing is allowed
+                  if (relatedBadges.isEmpty) return const SizedBox();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      Text(
+                        "Related:",
+                        style: TextStyle(
+                          fontSize: size,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      Wrap(spacing: 8, runSpacing: 8, children: relatedBadges),
+                    ],
+                  );
+                },
               ),
 
             const SizedBox(height: 16),
