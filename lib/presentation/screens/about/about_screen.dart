@@ -45,12 +45,12 @@ class AboutScreen extends StatelessWidget {
                 padding: EdgeInsets.all(16),
                 child: Text(
                   "May the Lord continue to strengthen all the saints who use this app "
-                  "to pursue Him in songs, hymns, and praises. May every hymn refresh "
+                  "to pursue Him in hymns and praises. May every hymn refresh "
                   "your spirit, uplift your heart, and deepen your enjoyment of Christ "
                   "day by day.\n\n"
                   "If you feel burdened to partake in the development of apps that support "
                   "the saints in their spiritual pursuit, you are warmly invited to reach out. "
-                  "Whether through development, ideas, or offerings for this kind of service "
+                  "Whether through development, ideas for this kind of service "
                   "unto the Lord, every portion is valued.",
                   style: TextStyle(fontSize: 16, height: 1.6),
                 ),

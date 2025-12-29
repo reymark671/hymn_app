@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-import 'package:hymn_app/data/models/language.dart';
 
 class SettingsModel extends ChangeNotifier {
   double fontSize = 16.0;

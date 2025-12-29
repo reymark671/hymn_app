@@ -26,7 +26,7 @@ class RelatedHymnBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: language.badgeColor.withOpacity(0.15),
+          color: language.badgeColor.withValues(alpha: 0.15),
           border: Border.all(color: language.borderColor),
           borderRadius: BorderRadius.circular(20),
         ),

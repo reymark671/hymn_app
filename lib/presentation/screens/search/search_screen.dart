@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hymn_app/services/search_service.dart';
+import 'package:hymn_app/services/favorites_service.dart';
 import 'package:hymn_app/data/models/language.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -25,7 +26,16 @@ class _SearchScreenState extends State<SearchScreen>
   @override
   void initState() {
     super.initState();
-    tabController = TabController(length: 3, vsync: this);
+    tabController = TabController(length: 4, vsync: this);
+
+    tabController.addListener(() {
+      if (!tabController.indexIsChanging) {
+        setState(() {
+          results = [];
+          searching = false;
+        });
+      }
+    });
   }
 
   @override
@@ -48,13 +58,9 @@ class _SearchScreenState extends State<SearchScreen>
 
     setState(() => searching = true);
 
-    List<Map<String, Object?>> res;
-
-    if (tabIndex == 0) {
-      res = await SearchService.searchByNumber(query, widget.currentPrefix);
-    } else {
-      res = await SearchService.search(tabIndex, query);
-    }
+    final res = tabIndex == 0
+        ? await SearchService.searchByNumber(query, widget.currentPrefix)
+        : await SearchService.search(tabIndex, query);
 
     setState(() {
       results = res;
@@ -100,12 +106,38 @@ class _SearchScreenState extends State<SearchScreen>
         return ListTile(
           leading: lang != null ? buildBadge(lang) : null,
           title: Text("$id — $title"),
-          subtitle: Text(
-            hymn["first_chorus_line"]?.toString() ?? "",
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
           onTap: () => Navigator.pop(context, {"id": id, "lang": lang}),
+        );
+      },
+    );
+  }
+
+  Widget buildFavorites() {
+    return FutureBuilder<List<String>>(
+      future: FavoritesService.getFavorites(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final favs = snapshot.data!;
+        if (favs.isEmpty) {
+          return const Center(child: Text("No favorites yet"));
+        }
+
+        return ListView.builder(
+          itemCount: favs.length,
+          itemBuilder: (context, index) {
+            final id = favs[index];
+            final lang = SearchService.getLanguageForId(id);
+
+            return ListTile(
+              leading: lang != null ? buildBadge(lang) : null,
+              title: Text(id),
+              trailing: const Icon(Icons.favorite, color: Colors.red),
+              onTap: () => Navigator.pop(context, {"id": id, "lang": lang}),
+            );
+          },
         );
       },
     );
@@ -114,16 +146,17 @@ class _SearchScreenState extends State<SearchScreen>
   Widget buildSearchField(
     String hint,
     TextEditingController controller,
-    int tabIndex, {
-    bool numericOnly = false,
-  }) {
+    int tabIndex,
+  ) {
+    final isNumberTab = tabIndex == 0;
+
     return Padding(
       padding: const EdgeInsets.all(12),
       child: TextField(
         controller: controller,
-        autofocus: numericOnly,
-        keyboardType: numericOnly ? TextInputType.number : TextInputType.text,
-        inputFormatters: numericOnly
+        autofocus: isNumberTab,
+        keyboardType: isNumberTab ? TextInputType.number : TextInputType.text,
+        inputFormatters: isNumberTab
             ? [FilteringTextInputFormatter.digitsOnly]
             : null,
         decoration: InputDecoration(
@@ -147,6 +180,7 @@ class _SearchScreenState extends State<SearchScreen>
             Tab(text: "Number"),
             Tab(text: "Stanza"),
             Tab(text: "First Line"),
+            Tab(text: "Favorites"),
           ],
         ),
       ),
@@ -155,12 +189,7 @@ class _SearchScreenState extends State<SearchScreen>
         children: [
           Column(
             children: [
-              buildSearchField(
-                "Search by hymn number…",
-                searchNumber,
-                0,
-                numericOnly: true, // 🔢 NUMBER KEYPAD
-              ),
+              buildSearchField("Search by hymn number…", searchNumber, 0),
               Expanded(child: buildResults()),
             ],
           ),
@@ -176,6 +205,7 @@ class _SearchScreenState extends State<SearchScreen>
               Expanded(child: buildResults()),
             ],
           ),
+          buildFavorites(), // ⭐ FAVORITES TAB
         ],
       ),
     );
