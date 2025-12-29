@@ -1,4 +1,4 @@
-package com.example.hymn_app
+package com.reymark.hymn_app
 
 import android.media.MediaPlayer
 import io.flutter.embedding.android.FlutterActivity

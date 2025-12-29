@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hymn_app/services/search_service.dart';
+import 'package:hymn_app/services/favorites_service.dart';
 import 'package:hymn_app/data/models/language.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -14,9 +16,9 @@ class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
   late TabController tabController;
 
-  TextEditingController searchNumber = TextEditingController();
-  TextEditingController searchStanza = TextEditingController();
-  TextEditingController searchFirstLine = TextEditingController();
+  final TextEditingController searchNumber = TextEditingController();
+  final TextEditingController searchStanza = TextEditingController();
+  final TextEditingController searchFirstLine = TextEditingController();
 
   List<Map<String, Object?>> results = [];
   bool searching = false;
@@ -24,19 +26,41 @@ class _SearchScreenState extends State<SearchScreen>
   @override
   void initState() {
     super.initState();
-    tabController = TabController(length: 3, vsync: this);
+    tabController = TabController(length: 4, vsync: this);
+
+    tabController.addListener(() {
+      if (!tabController.indexIsChanging) {
+        setState(() {
+          results = [];
+          searching = false;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    tabController.dispose();
+    searchNumber.dispose();
+    searchStanza.dispose();
+    searchFirstLine.dispose();
+    super.dispose();
   }
 
   Future<void> doSearch(int tabIndex, String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        results = [];
+        searching = false;
+      });
+      return;
+    }
+
     setState(() => searching = true);
 
-    List<Map<String, Object?>> res = [];
-
-    if (tabIndex == 0) {
-      res = await SearchService.searchByNumber(query, widget.currentPrefix);
-    } else {
-      res = await SearchService.search(tabIndex, query);
-    }
+    final res = tabIndex == 0
+        ? await SearchService.searchByNumber(query, widget.currentPrefix)
+        : await SearchService.search(tabIndex, query);
 
     setState(() {
       results = res;
@@ -50,18 +74,26 @@ class _SearchScreenState extends State<SearchScreen>
       decoration: BoxDecoration(
         color: lang.badgeColor,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: lang.borderColor, width: 1),
+        border: Border.all(color: lang.borderColor),
       ),
       child: Text(
         lang.badgeText,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
 
   Widget buildResults() {
-    if (searching) return const Center(child: CircularProgressIndicator());
-    if (results.isEmpty) return const Center(child: Text("No results found"));
+    if (searching) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (results.isEmpty) {
+      return const Center(child: Text("No results found"));
+    }
 
     return ListView.builder(
       itemCount: results.length,
@@ -69,31 +101,67 @@ class _SearchScreenState extends State<SearchScreen>
         final hymn = results[index];
         final id = hymn["_id"].toString();
         final title = hymn["first_stanza_line"]?.toString() ?? "";
-
         final lang = SearchService.getLanguageForId(id);
 
         return ListTile(
           leading: lang != null ? buildBadge(lang) : null,
           title: Text("$id — $title"),
-          subtitle: Text(
-            hymn["first_chorus_line"]?.toString() ?? "",
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
           onTap: () => Navigator.pop(context, {"id": id, "lang": lang}),
         );
       },
     );
   }
 
-  Widget buildSearchField(String text, TextEditingController ctrl, int tabIndex) {
+  Widget buildFavorites() {
+    return FutureBuilder<List<String>>(
+      future: FavoritesService.getFavorites(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final favs = snapshot.data!;
+        if (favs.isEmpty) {
+          return const Center(child: Text("No favorites yet"));
+        }
+
+        return ListView.builder(
+          itemCount: favs.length,
+          itemBuilder: (context, index) {
+            final id = favs[index];
+            final lang = SearchService.getLanguageForId(id);
+
+            return ListTile(
+              leading: lang != null ? buildBadge(lang) : null,
+              title: Text(id),
+              trailing: const Icon(Icons.favorite, color: Colors.red),
+              onTap: () => Navigator.pop(context, {"id": id, "lang": lang}),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget buildSearchField(
+    String hint,
+    TextEditingController controller,
+    int tabIndex,
+  ) {
+    final isNumberTab = tabIndex == 0;
+
     return Padding(
       padding: const EdgeInsets.all(12),
       child: TextField(
-        controller: ctrl,
+        controller: controller,
+        autofocus: isNumberTab,
+        keyboardType: isNumberTab ? TextInputType.number : TextInputType.text,
+        inputFormatters: isNumberTab
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : null,
         decoration: InputDecoration(
           prefixIcon: const Icon(Icons.search),
-          hintText: text,
+          hintText: hint,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
         onChanged: (value) => doSearch(tabIndex, value),
@@ -112,24 +180,32 @@ class _SearchScreenState extends State<SearchScreen>
             Tab(text: "Number"),
             Tab(text: "Stanza"),
             Tab(text: "First Line"),
+            Tab(text: "Favorites"),
           ],
         ),
       ),
       body: TabBarView(
         controller: tabController,
         children: [
-          Column(children: [
-            buildSearchField("Search by hymn number…", searchNumber, 0),
-            Expanded(child: buildResults())
-          ]),
-          Column(children: [
-            buildSearchField("Search by stanza…", searchStanza, 1),
-            Expanded(child: buildResults())
-          ]),
-          Column(children: [
-            buildSearchField("Search by first line…", searchFirstLine, 2),
-            Expanded(child: buildResults())
-          ]),
+          Column(
+            children: [
+              buildSearchField("Search by hymn number…", searchNumber, 0),
+              Expanded(child: buildResults()),
+            ],
+          ),
+          Column(
+            children: [
+              buildSearchField("Search by stanza…", searchStanza, 1),
+              Expanded(child: buildResults()),
+            ],
+          ),
+          Column(
+            children: [
+              buildSearchField("Search by first line…", searchFirstLine, 2),
+              Expanded(child: buildResults()),
+            ],
+          ),
+          buildFavorites(), // ⭐ FAVORITES TAB
         ],
       ),
     );

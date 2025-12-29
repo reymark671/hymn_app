@@ -12,25 +12,25 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    _navigate();
+  }
 
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MyHomePage(title: "Hymn Viewer")),
-      );
-    });
+  Future<void> _navigate() async {
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const MyHomePage(title: "Hymn Viewer")),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: Image.asset(
-          'assets/logo.png',
-          width: 150,
-        ),
-      ),
+      body: Center(child: Image.asset('assets/logo_h.png', width: 150)),
     );
   }
 }

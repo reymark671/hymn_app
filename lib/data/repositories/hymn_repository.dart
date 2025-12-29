@@ -1,4 +1,3 @@
-import 'package:sqflite/sqflite.dart';
 import '../db/database_helper.dart';
 
 class HymnRepository {
@@ -8,11 +7,7 @@ class HymnRepository {
   static Future<Map<String, Object?>?> loadHymnById(String id) async {
     final db = await DatabaseHelper.database;
 
-    final rows = await db.query(
-      'hymns',
-      where: '_id = ?',
-      whereArgs: [id],
-    );
+    final rows = await db.query('hymns', where: '_id = ?', whereArgs: [id]);
 
     return rows.isNotEmpty ? rows.first : null;
   }
@@ -52,12 +47,12 @@ class HymnRepository {
   // 🔗 Dynamic Related Mapping
   // ----------------------------------------------------
   static Future<String?> findRelatedIdDynamic(
-      Map<String, Object?> currentHymn, String targetPrefix) async {
+    Map<String, Object?> currentHymn,
+    String targetPrefix,
+  ) async {
     final String currentId = currentHymn['_id']?.toString() ?? "";
     final relatedRaw = currentHymn['related']?.toString() ?? "";
     final parts = relatedRaw.split(',');
-
-    print("DEBUG related: $relatedRaw");
 
     // 1️⃣ Direct match
     for (String p in parts) {
