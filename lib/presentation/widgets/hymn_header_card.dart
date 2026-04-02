@@ -28,8 +28,12 @@ class HymnHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
       elevation: 2,
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -42,45 +46,50 @@ class HymnHeaderCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: size ?? 20,
                 fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black,
               ),
             ),
 
             if (subTitle != null && subTitle!.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text(subTitle!, textAlign: TextAlign.center),
+              Text(
+                subTitle!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black54,
+                ),
+              ),
             ],
 
             const SizedBox(height: 16),
 
             // ===== ACTION BUTTONS =====
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               decoration: BoxDecoration(
-                color:
-                    currentLanguage?.badgeColor ??
-                    Theme.of(context).primaryColor,
+                color: isDark
+                    ? const Color(0xFF2A2A2A)
+                    : theme.colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  _tabButton(context, Icons.copy, "Copy", onCopyPressed),
+                  const SizedBox(width: 16),
                   _tabButton(
-                    icon: Icons.copy,
-                    label: "Copy",
-                    onPressed: onCopyPressed,
+                    context,
+                    isPlaying ? Icons.stop : Icons.play_arrow,
+                    isPlaying ? "Stop" : "Play",
+                    onPlayPressed,
                   ),
                   const SizedBox(width: 16),
                   _tabButton(
-                    icon: isPlaying ? Icons.stop : Icons.play_arrow,
-                    label: isPlaying ? "Stop" : "Play",
-                    onPressed: onPlayPressed,
-                  ),
-                  const SizedBox(width: 16),
-                  _tabButton(
-                    icon: Icons.favorite,
-                    label: "Favorite",
-                    iconColor: isFavorite ? Colors.red : Colors.grey,
-                    onPressed: onFavoritesPress,
+                    context,
+                    Icons.favorite,
+                    "Favorite",
+                    onFavoritesPress,
+                    iconColor: isFavorite ? Colors.red : null,
                   ),
                 ],
               ),
@@ -91,26 +100,39 @@ class HymnHeaderCard extends StatelessWidget {
     );
   }
 
-  Widget _tabButton({
-    required IconData icon,
-    required String label,
-    VoidCallback? onPressed,
+  Widget _tabButton(
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback? onPressed, {
     Color? iconColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: isDark ? const Color(0xFF3A3A3A) : Colors.white,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 14, color: iconColor ?? Colors.black87),
+            Icon(
+              icon,
+              size: 16,
+              color: iconColor ?? (isDark ? Colors.white : Colors.black87),
+            ),
             const SizedBox(height: 4),
-            Text(label, style: const TextStyle(fontSize: 12)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
           ],
         ),
       ),

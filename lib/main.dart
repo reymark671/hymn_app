@@ -21,6 +21,14 @@ import 'package:hymn_app/services/swipe_handler.dart';
 import 'package:hymn_app/services/language_service.dart';
 import 'package:hymn_app/services/hymn_copy_service.dart';
 import 'package:hymn_app/services/midi_player_service.dart';
+import 'package:in_app_update/in_app_update.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart';
+
+// 🔥 DATABASE VERSION CONTROL
+const int APP_DB_VERSION = 2; // ⬅️ increment when DB schema changes
+const String DB_NAME = "hymns.db";
 
 void main() {
   runApp(
@@ -40,13 +48,28 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'Psalmist of the Lord',
+      debugShowCheckedModeBanner: false,
+
       themeMode: settings.nightMode ? ThemeMode.dark : ThemeMode.light,
-      darkTheme: ThemeData.dark().copyWith(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
+
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        brightness: Brightness.light,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.light,
+        ),
       ),
+
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.dark,
+        ),
+      ),
+
       home: const MyHomePage(title: "Psalmist of the Lord"),
     );
   }
@@ -65,11 +88,13 @@ enum HymnViewMode { text, chords, piano, guitar }
 class ZoomableSvgViewer extends StatefulWidget {
   final String svgPath;
   final String title;
+  final Color? svgColor;
 
   const ZoomableSvgViewer({
     super.key,
     required this.svgPath,
     required this.title,
+    this.svgColor,
   });
 
   @override
@@ -88,8 +113,14 @@ class SvgFullscreenPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -101,13 +132,18 @@ class SvgFullscreenPage extends StatelessWidget {
               constrained: false,
               child: SizedBox(
                 width: constraints.maxWidth,
-                height: constraints.maxWidth * 1.9, // 🔥 FORCE SVG HEIGHT
+                height: constraints.maxWidth * 1.9,
                 child: FittedBox(
                   fit: BoxFit.fitWidth,
                   alignment: Alignment.topCenter,
                   child: SvgPicture.asset(
                     svgPath,
                     allowDrawingOutsideViewBox: true,
+
+                    // 🌙 DARK MODE FIX
+                    colorFilter: isDark
+                        ? const ColorFilter.mode(Colors.white, BlendMode.srcIn)
+                        : null,
                   ),
                 ),
               ),
@@ -160,7 +196,8 @@ class _ZoomableSvgViewerState extends State<ZoomableSvgViewer> {
           _initialized = true;
         }
 
-        return SizedBox(
+        return Container(
+          color: Theme.of(context).colorScheme.surface,
           height: MediaQuery.of(context).size.height * 2.5,
           child: Stack(
             children: [
@@ -174,9 +211,12 @@ class _ZoomableSvgViewerState extends State<ZoomableSvgViewer> {
                   constrained: false,
                   child: SvgPicture.asset(
                     widget.svgPath,
-                    fit: BoxFit.none, // 🚨 DO NOT FIT
+                    fit: BoxFit.none,
                     alignment: Alignment.topCenter,
                     allowDrawingOutsideViewBox: true,
+                    colorFilter: widget.svgColor != null
+                        ? ColorFilter.mode(widget.svgColor!, BlendMode.srcIn)
+                        : null,
                   ),
                 ),
               ),
@@ -223,15 +263,17 @@ class _ZoomableSvgViewerState extends State<ZoomableSvgViewer> {
   }
 
   Widget _overlayButton({required IconData icon, required VoidCallback onTap}) {
+    final theme = Theme.of(context);
+
     return Material(
-      color: Colors.black.withValues(alpha: 0.6),
+      color: theme.colorScheme.surface.withOpacity(0.85),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(10),
-          child: Icon(icon, color: Colors.white, size: 22),
+          child: Icon(icon, color: theme.colorScheme.onSurface, size: 22),
         ),
       ),
     );
@@ -282,6 +324,10 @@ class StickyRelatedBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (relatedIds.isEmpty) return const SizedBox();
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     final badges = relatedIds.map((id) {
       final lang = LanguageService.detectFromHymnId(id)!;
 
@@ -290,19 +336,26 @@ class StickyRelatedBar extends StatelessWidget {
         hymnId: id,
         onTap: () => onRelatedPressed?.call(id),
       );
-    }).whereType<Widget>();
-
-    if (badges.isEmpty) return const SizedBox();
+    }).toList();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+
+      // 🔥 FORCE DARK MODE LOOK
+      color: isDark ? const Color(0xFF121212) : theme.colorScheme.surface,
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Related:", style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            "Related:",
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
           const SizedBox(height: 6),
-          Wrap(spacing: 8, runSpacing: 8, children: badges.toList()),
+          Wrap(spacing: 8, runSpacing: 8, children: badges),
         ],
       ),
     );
@@ -352,12 +405,41 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _restoreLastState();
+    _checkForUpdate();
+    ensureLatestDatabase();
   }
 
   Future<void> _stopMidiIfPlaying() async {
     if (isPlaying) {
       await SystemMidiPlayer.stop();
       setState(() => isPlaying = false);
+    }
+  }
+
+  Future<void> ensureLatestDatabase() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedVersion = prefs.getInt('db_version') ?? 0;
+
+    if (savedVersion < APP_DB_VERSION) {
+      final dbPath = p.join(await getDatabasesPath(), DB_NAME);
+
+      // 🔥 Delete old DB so new one is copied from assets
+      await deleteDatabase(dbPath);
+
+      await prefs.setInt('db_version', APP_DB_VERSION);
+    }
+  }
+
+  Future<void> _checkForUpdate() async {
+    try {
+      final info = await InAppUpdate.checkForUpdate();
+
+      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
+        await InAppUpdate.startFlexibleUpdate();
+        await InAppUpdate.completeFlexibleUpdate();
+      }
+    } catch (e) {
+      // silently ignore or log
     }
   }
 
@@ -517,9 +599,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
               Text(
                 "Author: ${hymn?['author'] ?? 'Unknown'}",
-                style: const TextStyle(
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  fontStyle: FontStyle.italic,
                 ),
               ),
 
@@ -527,9 +609,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
               Text(
                 "Meter: ${hymn?['meter'] ?? '—'}",
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
               ),
             ],
@@ -558,9 +640,12 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _buildGuitarView() {
     final hymnId = hymn?['_id']?.toString();
     if (hymnId == null) {
-      return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Text("No hymn selected"),
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          "No hymn selected",
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
       );
     }
 
@@ -577,13 +662,22 @@ class _MyHomePageState extends State<MyHomePage> {
         }
 
         if (snapshot.data == false) {
-          return const Padding(
-            padding: EdgeInsets.all(24),
-            child: Text("No guitar chords available"),
+          return Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              "No guitar chords available",
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           );
         }
 
-        return ZoomableSvgViewer(svgPath: svgPath, title: "Guitar");
+        return ZoomableSvgViewer(
+          svgPath: svgPath,
+          title: "Guitar",
+          svgColor: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white
+              : null, // keep original in light mode
+        );
       },
     );
   }
@@ -591,9 +685,12 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _buildPianoView() {
     final hymnId = hymn?['_id']?.toString();
     if (hymnId == null) {
-      return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Text("No hymn selected"),
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          "No hymn selected",
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
       );
     }
 
@@ -610,18 +707,30 @@ class _MyHomePageState extends State<MyHomePage> {
         }
 
         if (snapshot.data == false) {
-          return const Padding(
-            padding: EdgeInsets.all(24),
-            child: Text("No piano notation available"),
+          return Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              "No piano notation available",
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           );
         }
 
-        return ZoomableSvgViewer(svgPath: svgPath, title: "Piano");
+        return ZoomableSvgViewer(
+          svgPath: svgPath,
+          title: "Piano",
+          svgColor: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white
+              : null,
+        );
       },
     );
   }
 
   Widget _buildViewModeSelector() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Center(
       child: ToggleButtons(
         isSelected: [
@@ -630,15 +739,24 @@ class _MyHomePageState extends State<MyHomePage> {
           viewMode == HymnViewMode.piano,
           viewMode == HymnViewMode.guitar,
         ],
+
         onPressed: (index) async {
           await _stopMidiIfPlaying();
-
           setState(() {
             viewMode = HymnViewMode.values[index];
           });
         },
+
         borderRadius: BorderRadius.circular(8),
         constraints: const BoxConstraints(minHeight: 36, minWidth: 80),
+
+        // 🌙 DARK MODE SAFE COLORS
+        fillColor: colorScheme.primaryContainer,
+        selectedColor: colorScheme.onPrimaryContainer,
+        color: colorScheme.onSurface,
+        borderColor: colorScheme.outline,
+        selectedBorderColor: colorScheme.primary,
+
         children: const [
           Text("Text"),
           Text("Chords"),
@@ -803,6 +921,7 @@ class _MyHomePageState extends State<MyHomePage> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverToBoxAdapter(
               child: Card(
+                color: Theme.of(context).colorScheme.surface,
                 elevation: 3,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
